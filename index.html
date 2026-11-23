@@ -14,6 +14,7 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<script src="nav-core.js"></script>
 <style>
   :root{
     --ink:#20242e;--ink-soft:#5a6072;--line:#ece6dc;--bg:#faf7f2;--card:#fff;
@@ -589,47 +590,77 @@ async function startNav(stops){
   hideToast();
   if(full.length<2){toast(T[lang].toastNoRoute);return;}
   setRoute(full);
-  // cumulative distance
-  const cum=[0];for(let i=1;i<full.length;i++)cum.push(cum[i-1]+hav(full[i-1],full[i]));
+  const cum=NavCore.cumulative(full);
   const total=cum[cum.length-1];
-  const spotDist=spotAt.map(i=>cum[i]);
+  const spotDist=spotAt.map(i=>cum[Math.min(i,cum.length-1)]);
   $("#hud").classList.add("on");
-  const start=full[0],b0=brng(full[0],full[Math.min(3,full.length-1)]);
-  // 2D -> 3D 俯衝
-  MAP.map.flyTo({center:start,zoom:18,pitch:66,bearing:b0*180/Math.PI,duration:1800,essential:true,easing:t=>1-Math.pow(1-t,3)});
+  const start=full[0],b0=NavCore.brng(full[0],full[Math.min(3,full.length-1)]);
+  // 2D -> 3D 俯衝（進場動畫期間不搶鏡頭）
+  MAP.map.flyTo({center:start,zoom:MAP.avatarMode==='car'?17.5:18.3,pitch:66,bearing:b0*180/Math.PI,duration:1800,essential:true,easing:t=>1-Math.pow(1-t,3)});
   setAvatar(start[0],start[1],b0);
-  speak((lang==='en'?'Starting navigation to ':'開始導航，前往 ')+sname(stops[1]||stops[0]));
-  const legSec=MAP.avatarMode==='car'?8:10;
-  const dur=(stops.length-1)*legSec*1000;
-  let nextSpot=1;
-  await new Promise(resolve=>{setTimeout(resolve,1700);});
-  const t0=performance.now();
-  MAP.nav={stops,active:true};
-  function frame(now){
-    if(!MAP.nav||!MAP.nav.active)return;
-    const p=Math.min(1,(now-t0)/dur);
-    const dist=p*total;
-    // locate segment
-    let i=1;while(i<cum.length&&cum[i]<dist)i++;
-    i=Math.min(i,full.length-1);
-    const f=(dist-cum[i-1])/Math.max(0.001,(cum[i]-cum[i-1]));
-    const pos=lerpLL(full[i-1],full[i],f);
-    const hb=brng(full[i-1],full[i]);
-    setAvatar(pos[0],pos[1],hb);
-    MAP.map.jumpTo({center:pos,bearing:hb*180/Math.PI,pitch:66,zoom:MAP.avatarMode==='car'?17.5:18.2});
-    // HUD
-    const remain=Math.max(0,spotDist[nextSpot]-dist);
-    $("#hudDist").textContent=(remain>=1000?(remain/1000).toFixed(1)+' km':Math.round(remain)+' m');
-    $("#hudInstr").textContent=(lang==='en'?'To ':'前往 ')+sname(stops[nextSpot]);
-    $("#hudArrow").textContent=remain<60?'📍':'⬆️';
-    $("#hudRoad").textContent=(MAP.avatarMode==='car'?'🚗':'🚶')+' '+(lang==='en'?'en route':'導航中');
-    const leftTime=Math.round((dur-(now-t0))/1000);$("#hudEta").textContent=T[lang].eta+' '+Math.max(0,leftTime)+'s';
-    $("#hudThen").textContent=stops[nextSpot+1]?(T[lang].then+' → '+sname(stops[nextSpot+1])):'';
-    if(dist>=spotDist[nextSpot]-2){arrivePulse(stops[nextSpot].ll);speak((lang==='en'?'Arrived: ':'已抵達 ')+sname(stops[nextSpot]));toast('📍 '+sname(stops[nextSpot]));nextSpot++;}
-    if(p>=1||nextSpot>=stops.length){finishNav(stops);return;}
-    MAP.raf=requestAnimationFrame(frame);
-  }
-  MAP.raf=requestAnimationFrame(frame);
+  speak(lang==='en'?'Navigation started. Move at your own pace.':'導航開始，依你的步調前進即可。');
+  MAP.nav={active:true,stops,full,cum,total,spotDist,progress:0,target:0,lastProg:0,lastArr:0,nextSpot:1,speed:0,mode:'real',gotFix:false,chaseAt:performance.now()+1800};
+  ensureSimBtn();
+  startWatch();
+  setTimeout(()=>{ if(MAP.nav&&!MAP.nav.gotFix&&MAP.nav.mode==='real') toast(lang==='en'?'Waiting for your movement… or tap 🧪 to simulate':'等待你移動…（桌機可按 🧪 模擬行走）',true); },4500);
+  MAP.raf=requestAnimationFrame(navTick);
+}
+function navTick(){
+  const nav=MAP.nav; if(!nav||!nav.active)return;
+  // 1Hz GPS → 60fps 平滑：progress 以阻尼追向 target
+  nav.progress += (nav.target-nav.progress)*0.14;
+  if(Math.abs(nav.target-nav.progress)<0.3) nav.progress=nav.target;
+  const prog=Math.max(0,Math.min(nav.total,nav.progress));
+  const {ll,seg}=NavCore.posAtDistance(nav.full,nav.cum,prog);
+  const hb=NavCore.brng(nav.full[seg],nav.full[Math.min(seg+1,nav.full.length-1)]);
+  setAvatar(ll[0],ll[1],hb);
+  if(performance.now()>=nav.chaseAt) MAP.map.jumpTo({center:ll,bearing:hb*180/Math.PI,pitch:66,zoom:MAP.avatarMode==='car'?17.5:18.3});
+  NavCore.arrivalsPassed(nav.lastProg,prog,nav.spotDist,18).forEach(idx=>{ if(idx>nav.lastArr){nav.lastArr=idx;arrivePulse(nav.stops[idx].ll);speak((lang==='en'?'Arrived: ':'已抵達 ')+sname(nav.stops[idx]));toast('📍 '+sname(nav.stops[idx]));} });
+  nav.lastProg=prog;
+  let ns=nav.spotDist.findIndex(d=>d>prog+1); if(ns<0)ns=nav.stops.length-1; nav.nextSpot=ns;
+  const remain=NavCore.remainingToSpot(prog,nav.spotDist[ns]);
+  $("#hudDist").textContent=remain>=1000?(remain/1000).toFixed(1)+' km':Math.round(remain)+' m';
+  $("#hudInstr").textContent=(lang==='en'?'To ':'前往 ')+sname(nav.stops[ns]);
+  $("#hudArrow").textContent=remain<40?'📍':'⬆️';
+  const spd=nav.speed||0;
+  $("#hudRoad").textContent=(MAP.avatarMode==='car'?'🚗':'🚶')+' '+(spd>0.3?(spd*3.6).toFixed(0)+' km/h':(nav.mode==='sim'?(lang==='en'?'simulating':'模擬中'):(lang==='en'?'waiting to move':'等待移動')));
+  const etaS=spd>0.5?Math.round(remain/spd):null;
+  $("#hudEta").textContent=etaS!=null?(T[lang].eta+' '+(etaS>=60?Math.round(etaS/60)+'m':etaS+'s')):'—';
+  $("#hudThen").textContent=nav.stops[ns+1]?(T[lang].then+' → '+sname(nav.stops[ns+1])):'';
+  if(prog>=nav.total-1&&nav.lastArr>=nav.stops.length-1){finishNav(nav.stops);return;}
+  MAP.raf=requestAnimationFrame(navTick);
+}
+function startWatch(){
+  const nav=MAP.nav; if(!nav)return;
+  if(!navigator.geolocation){enableSim(true);return;}
+  try{
+    nav.watchId=navigator.geolocation.watchPosition(pos=>{
+      if(!MAP.nav||MAP.nav.mode==='sim')return;
+      const snap=NavCore.snapToRoute([pos.coords.longitude,pos.coords.latitude],MAP.nav.full,MAP.nav.cum);
+      if(snap.offset<60 && snap.dist>MAP.nav.target-8) MAP.nav.target=snap.dist; // 只前進、濾掉大漂移
+      MAP.nav.speed=Math.max(0,pos.coords.speed||0);
+      MAP.nav.gotFix=true;
+    },()=>{ if(MAP.nav&&MAP.nav.mode==='real'){enableSim(true);toast(lang==='en'?'Location blocked — walk simulation on':'定位被拒，已開啟模擬行走');} },
+    {enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+  }catch(e){enableSim(true);}
+}
+function enableSim(on){
+  const nav=MAP.nav; if(!nav)return;
+  clearInterval(nav.simItv);
+  if(on){
+    nav.mode='sim';
+    const v=MAP.avatarMode==='car'?11:1.4; // m/s：真實步行/行車速度
+    nav.simItv=setInterval(()=>{ if(!MAP.nav)return; MAP.nav.target=Math.min(MAP.nav.total,MAP.nav.target+v*0.25); MAP.nav.speed=v; },250);
+  }else{ nav.mode='real'; nav.speed=0; }
+  const b=$("#simBtn"); if(b)b.textContent=(nav.mode==='sim'?'⏸ 停止模擬':'🧪 模擬行走');
+}
+function ensureSimBtn(){
+  if($("#simBtn"))return;
+  const b=document.createElement('button');
+  b.id='simBtn';b.textContent='🧪 模擬行走';
+  b.style.cssText='position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:12;border:0;border-radius:12px;padding:9px 13px;font-weight:800;font-size:12.5px;color:#fff;background:rgba(13,21,38,.85);backdrop-filter:blur(6px);font-family:inherit';
+  b.onclick=()=>enableSim(MAP.nav&&MAP.nav.mode!=='sim');
+  $("#mapOverlay").appendChild(b);
 }
 function arrivePulse(ll){
   if(!MAP.map.getSource('pulse'))return;
@@ -638,15 +669,16 @@ function arrivePulse(ll){
   const step=()=>{r+=2.2;op-=0.012;MAP.map.setPaintProperty('pulse','circle-radius',r);MAP.map.setPaintProperty('pulse','circle-opacity',Math.max(0,op));if(op>0)MAP.pulseRaf=requestAnimationFrame(step);};
   step();
 }
+function clearNavWatch(){ if(MAP.nav){ if(MAP.nav.watchId!=null&&navigator.geolocation){try{navigator.geolocation.clearWatch(MAP.nav.watchId);}catch(e){}} clearInterval(MAP.nav.simItv); } }
 function finishNav(stops){
-  MAP.nav=null;cancelAnimationFrame(MAP.raf);
+  clearNavWatch();MAP.nav=null;cancelAnimationFrame(MAP.raf);
+  const sb=$("#simBtn");if(sb)sb.remove();
   const last=stops[stops.length-1];
   toast(T[lang].toastArrived);speak(T[lang].toastArrived);
-  // 繞行鏡頭
   let ang=0;const orbit=()=>{if(MAP.nav)return;ang+=0.4;MAP.map.jumpTo({center:last.ll,bearing:ang,pitch:60,zoom:17.5});if(ang<90){MAP._orbit=requestAnimationFrame(orbit);}else{setTimeout(()=>{$("#hud").classList.remove("on");hideAvatar();renderDay(MAP.flatIdx);},800);}};
   MAP._orbit=requestAnimationFrame(orbit);
 }
-function stopNav(){if(MAP.nav)MAP.nav.active=false;MAP.nav=null;cancelAnimationFrame(MAP.raf);cancelAnimationFrame(MAP._orbit);cancelAnimationFrame(MAP.pulseRaf);$("#hud").classList.remove("on");}
+function stopNav(){clearNavWatch();if(MAP.nav)MAP.nav.active=false;MAP.nav=null;cancelAnimationFrame(MAP.raf);cancelAnimationFrame(MAP._orbit);cancelAnimationFrame(MAP.pulseRaf);$("#hud").classList.remove("on");const sb=$("#simBtn");if(sb)sb.remove();}
 
 /* --- 開關全螢幕地圖 --- */
 function openMapForDay(flatIdx,spotIdx){
