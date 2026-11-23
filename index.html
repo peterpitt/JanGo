@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>櫻旅 3D・日本旅遊導航</title>
+<meta name="theme-color" content="#0d1526">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="櫻旅3D">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230d1526'/%3E%3Ctext x='90' y='120' font-size='92' text-anchor='middle'%3E%F0%9F%97%BE%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E6%AB%BB%E6%97%853D%22%2C%22short_name%22%3A%22%E6%AB%BB%E6%97%853D%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230d1526%22%2C%22theme_color%22%3A%22%230d1526%22%7D">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<style>
+  :root{
+    --ink:#20242e;--ink-soft:#5a6072;--line:#ece6dc;--bg:#faf7f2;--card:#fff;
+    --navy:#1b2a4a;--navy2:#2d4373;--sakura:#e07a9b;--sakura-soft:#fbe8ee;--gold:#c8a24a;--ok:#2f8f62;--warn:#c7682e;
+    --shadow:0 8px 30px rgba(27,42,74,.09);--shadow-sm:0 2px 10px rgba(27,42,74,.06);--r:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:"Noto Sans TC","PingFang TC","Hiragino Sans",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:40px}
+  .hero{background:linear-gradient(150deg,#0d1526,#1b2a4a 55%,#2d4373);color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 22px 56px;position:relative;overflow:hidden}
+  .hero::after{content:"🌸";position:absolute;font-size:150px;right:-28px;top:-20px;opacity:.10;transform:rotate(-12deg)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.5px;font-size:20px}
+  .brand .dot{color:var(--sakura)}
+  .tagline{margin-top:6px;font-size:13px;opacity:.88;max-width:80%}
+  .lang-btn{position:absolute;top:calc(env(safe-area-inset-top) + 16px);right:16px;z-index:3;background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}
+  .panel{background:var(--card);border-radius:22px;margin:-34px 16px 0;padding:18px 16px 20px;box-shadow:var(--shadow);position:relative;z-index:2}
+  .field{margin-bottom:15px}.field:last-child{margin-bottom:0}
+  label.l{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:8px}
+  .region-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .region{position:relative;border:1.5px solid var(--line);border-radius:14px;background:#fff;padding:9px 3px 7px;text-align:center;cursor:pointer;transition:.16s;font-size:11.5px;font-weight:600;color:var(--ink)}
+  .region .emo{font-size:22px;display:block;margin-bottom:2px}
+  .region.active{border-color:var(--navy);background:var(--navy);color:#fff;box-shadow:var(--shadow-sm)}
+  .region .ord{position:absolute;top:-6px;right:-6px;background:var(--sakura);color:#fff;font-size:10px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .reg-sum{margin-top:10px;font-size:12px;color:var(--navy2);background:var(--bg);border-radius:12px;padding:9px 12px;line-height:1.55}.reg-sum b{color:var(--navy)}
+  .days-row{display:flex;align-items:center;gap:12px}
+  .stepper{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:14px;overflow:hidden}
+  .stepper button{width:44px;height:46px;border:0;background:#fff;font-size:22px;color:var(--navy);cursor:pointer;font-weight:600}
+  .stepper .val{width:52px;text-align:center;font-size:19px;font-weight:800}
+  .days-hint{font-size:12.5px;color:var(--ink-soft)}
+  .date-input{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;font-family:inherit;color:var(--ink);background:#fff}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1.5px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;background:#fff;font-weight:600;color:var(--ink-soft)}
+  .chip.active{background:var(--sakura-soft);border-color:var(--sakura);color:#b43e63}
+  .go{width:100%;margin-top:18px;border:0;border-radius:16px;padding:16px;font-size:16.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--sakura),#cf5d82);cursor:pointer;letter-spacing:1px;box-shadow:0 8px 22px rgba(207,93,130,.33)}
+  .go:active{transform:scale(.98)}.go[disabled]{opacity:.6}
+  #results{padding:0 16px;margin-top:20px}
+  .sec{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow-sm);margin-bottom:14px;overflow:hidden}
+  .sec-h{display:flex;align-items:center;gap:9px;padding:14px 16px 10px;font-size:15px;font-weight:800}.sec-h .ic{font-size:19px}
+  .sec-b{padding:0 16px 16px}
+  .trip-meta{background:linear-gradient(135deg,#243a63,#32528a);color:#fff;border-radius:var(--r);padding:16px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+  .trip-meta .big{font-size:19px;font-weight:800}.trip-meta .sub{font-size:12.5px;opacity:.85;margin-top:2px}.trip-meta .r{text-align:right;font-size:12.5px;opacity:.9}
+  .open3d{width:100%;border:0;border-radius:16px;padding:16px;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1f6feb,#0d47a1);cursor:pointer;box-shadow:0 8px 22px rgba(13,71,161,.35);margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .open3d:active{transform:scale(.98)}
+  .fx-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.fx-rate{font-size:26px;font-weight:800;color:var(--navy)}.fx-unit{font-size:13px;color:var(--ink-soft)}
+  .fx-note{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+  .conv{display:flex;gap:8px;margin-top:12px;align-items:center}.conv input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;font-size:15px;font-family:inherit;text-align:right}.conv .cur{font-size:12px;color:var(--ink-soft);font-weight:700;width:34px}.conv .eq{color:var(--ink-soft);font-weight:700}
+  .wx-scroll{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px}.wx-scroll::-webkit-scrollbar{display:none}
+  .wx-day{flex:0 0 auto;width:76px;background:var(--bg);border-radius:14px;padding:11px 6px;text-align:center}.wx-day .d{font-size:11px;color:var(--ink-soft);font-weight:700}.wx-day .ico{font-size:26px;margin:4px 0}.wx-day .t{font-size:13px;font-weight:800}.wx-day .t .lo{color:var(--ink-soft);font-weight:600}.wx-day .rain{font-size:10.5px;color:#3a6ea5;margin-top:2px}
+  .tr-sys{font-size:13.5px;font-weight:700;color:var(--navy)}.tr-row{font-size:12.5px;color:var(--ink-soft);margin-top:6px}.tr-row b{color:var(--ink)}
+  .hotel{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line)}.hotel:first-child{border-top:0}.hotel .tier{flex:0 0 auto;width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--sakura-soft)}.hotel .info{flex:1;min-width:0}.hotel .nm{font-weight:700;font-size:14.5px}.hotel .meta{font-size:12px;color:var(--ink-soft);margin-top:1px}.hotel .price{font-size:12.5px;color:var(--gold);font-weight:700;margin-top:3px}.hotel a.book{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--navy2);text-decoration:none;border:1.5px solid var(--line);padding:5px 11px;border-radius:10px}
+  .seg-h{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;margin:18px 2px 8px;padding-top:14px;border-top:2px dashed var(--line)}.seg:first-of-type .seg-h{border-top:0;padding-top:0;margin-top:4px}.seg-h .flag{font-size:22px}
+  .day{margin-bottom:14px}.day-tab{display:flex;align-items:center;gap:10px;margin-bottom:8px}.day-badge{background:var(--navy);color:#fff;font-weight:800;font-size:13px;padding:4px 12px;border-radius:999px}.day-title{font-size:13px;color:var(--ink-soft);font-weight:600}
+  .stop{display:flex;gap:12px;position:relative;padding-bottom:13px}.stop::before{content:"";position:absolute;left:17px;top:34px;bottom:0;width:2px;background:var(--line)}.stop:last-child::before{display:none}
+  .stop .pin{flex:0 0 auto;width:36px;height:36px;border-radius:50%;background:var(--sakura-soft);display:flex;align-items:center;justify-content:center;font-size:16px;z-index:1;font-weight:800;color:#b43e63}
+  .stop .c{flex:1;min-width:0;padding-top:2px}.stop .time{font-size:11px;color:var(--sakura);font-weight:800}.stop .nm{font-weight:700;font-size:14.5px}.stop .ds{font-size:12.5px;color:var(--ink-soft);margin-top:1px}
+  .stop .tags{margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}.stop .tg{font-size:10.5px;background:var(--bg);color:var(--ink-soft);padding:2px 8px;border-radius:999px;font-weight:600}
+  .stop .nav{font-size:11px;color:#fff;background:#1f6feb;text-decoration:none;font-weight:700;padding:3px 9px;border-radius:9px;cursor:pointer}
+  .freeday{background:var(--bg);border-radius:12px;padding:12px 13px}.flex-intro{font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px}.flex-sub{font-size:11.5px;color:var(--ink-soft);margin:6px 0 2px}
+  .flex-spot{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line)}.flex-spot span{flex:1;min-width:0}.flex-spot b{color:var(--navy)}.flex-spot a{flex:0 0 auto;font-size:11px;color:#fff;background:#1f6feb;text-decoration:none;font-weight:700;padding:3px 9px;border-radius:9px}
+  .flex-ideas{margin:8px 0 0;padding-left:18px}.flex-ideas li{font-size:12.5px;color:var(--ink-soft);margin:4px 0}
+  .toolbar{display:flex;gap:10px;margin:4px 0 10px}.toolbar button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:13px;padding:12px;font-weight:700;font-size:13.5px;color:var(--navy);cursor:pointer;font-family:inherit}.toolbar button.pri{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .loading{text-align:center;padding:30px 0;color:var(--ink-soft);font-size:13px}.spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--sakura);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite}
+  .err{font-size:12px;color:var(--warn)}
+  .foot{text-align:center;font-size:11px;color:var(--ink-soft);padding:18px 24px 6px;line-height:1.7}
+  .about{font-size:10.5px;color:#9aa0b0;line-height:1.6;padding:0 4px}
+  .fade{animation:fade .4s ease}@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ===== 3D 全螢幕地圖 ===== */
+  #mapOverlay{position:fixed;inset:0;z-index:50;background:#0d1526;display:none}
+  #mapOverlay.on{display:block}
+  #map{position:absolute;inset:0}
+  .maplibregl-ctrl-attrib{font-size:9px!important}
+  .m-top{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;z-index:10;display:flex;gap:8px;align-items:center;pointer-events:none}
+  .m-top>*{pointer-events:auto}
+  .m-close{width:40px;height:40px;border-radius:50%;border:0;background:rgba(13,21,38,.82);color:#fff;font-size:20px;font-weight:800;cursor:pointer;backdrop-filter:blur(6px)}
+  .day-pills{display:flex;gap:6px;overflow-x:auto;flex:1}.day-pills::-webkit-scrollbar{display:none}
+  .day-pill{flex:0 0 auto;border:0;background:rgba(13,21,38,.82);color:#fff;font-weight:800;font-size:12.5px;padding:9px 14px;border-radius:999px;cursor:pointer;backdrop-filter:blur(6px)}
+  .day-pill.active{background:#1f6feb}
+  .m-bottom{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:10;display:flex;flex-direction:column;gap:10px}
+  .m-actions{display:flex;gap:8px}
+  .m-btn{flex:1;border:0;border-radius:14px;padding:13px;font-weight:800;font-size:13.5px;color:#fff;background:rgba(13,21,38,.85);cursor:pointer;backdrop-filter:blur(6px);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+  .m-btn.blue{background:#1f6feb}.m-btn.green{background:var(--ok)}
+  .avatar-toggle{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 60px);z-index:10;border:0;border-radius:14px;padding:9px 12px;font-weight:800;font-size:12.5px;color:#fff;background:rgba(13,21,38,.82);cursor:pointer;backdrop-filter:blur(6px);font-family:inherit}
+  /* Turn-by-turn HUD */
+  .hud{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:12px;right:12px;z-index:11;background:rgba(13,21,38,.9);color:#fff;border-radius:18px;padding:14px 16px;backdrop-filter:blur(10px);display:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .hud.on{display:block}
+  .hud-main{display:flex;align-items:center;gap:14px}
+  .hud-arrow{font-size:34px;width:46px;text-align:center}
+  .hud-txt{flex:1;min-width:0}
+  .hud-dist{font-size:22px;font-weight:800;line-height:1.1}
+  .hud-instr{font-size:13px;opacity:.9;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hud-then{margin-top:8px;font-size:11.5px;opacity:.7;border-top:1px solid rgba(255,255,255,.15);padding-top:6px}
+  .hud-exit{position:absolute;top:10px;right:12px;background:none;border:0;color:#fff;opacity:.6;font-size:16px;cursor:pointer}
+  .hud-foot{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;opacity:.85}
+  /* spot popup card */
+  .spot-card{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 80px);z-index:9;background:#fff;border-radius:16px;padding:13px 15px;box-shadow:0 12px 34px rgba(0,0,0,.3);display:none}
+  .spot-card.on{display:block;animation:fade .3s ease}
+  .spot-card .t{font-weight:800;font-size:15px}.spot-card .d{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+  .spot-card .x{position:absolute;top:8px;right:12px;border:0;background:none;font-size:16px;color:var(--ink-soft);cursor:pointer}
+  .mpin{width:26px;height:26px;border-radius:50% 50% 50% 0;background:#1f6feb;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .mpin span{transform:rotate(45deg);color:#fff;font-weight:800;font-size:12px}
+  .mpin.start{background:var(--ok)}.mpin.end{background:#e0444a}
+  .m-avatar{font-size:26px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.4));transition:none}
+  .m-toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:12;background:rgba(13,21,38,.9);color:#fff;padding:12px 20px;border-radius:14px;font-weight:700;font-size:14px;display:none;backdrop-filter:blur(6px)}
+  .m-toast.on{display:block;animation:fade .3s ease}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <button class="lang-btn" id="langBtn">EN</button>
+    <div class="brand">🗾 櫻旅 3D<span class="dot"> ・</span>導航</div>
+    <div class="tagline" data-i="tagline"></div>
+  </header>
+  <section class="panel" id="panel">
+    <div class="field"><label class="l" data-i="lbRegion"></label><div class="region-grid" id="regionGrid"></div><div class="reg-sum" id="regSum"></div></div>
+    <div class="field"><label class="l" data-i="lbDays"></label>
+      <div class="days-row"><div class="stepper"><button type="button" id="dMinus">−</button><div class="val" id="dVal">3</div><button type="button" id="dPlus">＋</button></div><div class="days-hint" id="dHint"></div></div>
+    </div>
+    <div class="field"><label class="l" data-i="lbDate"></label><input type="date" class="date-input" id="startDate"></div>
+    <div class="field"><label class="l" data-i="lbPref"></label><div class="chips" id="prefChips"></div></div>
+    <button class="go" id="goBtn" data-i="go"></button>
+  </section>
+  <div id="results"></div>
+  <div class="foot" data-ihtml="foot"></div>
+</div>
+
+<!-- 3D 全螢幕導航地圖 -->
+<div id="mapOverlay">
+  <div id="map"></div>
+  <div class="m-top">
+    <button class="m-close" id="mClose">✕</button>
+    <div class="day-pills" id="dayPills"></div>
+  </div>
+  <button class="avatar-toggle" id="avatarToggle">🚶 步行</button>
+  <div class="hud" id="hud">
+    <button class="hud-exit" id="hudExit">✕</button>
+    <div class="hud-main"><div class="hud-arrow" id="hudArrow">⬆️</div><div class="hud-txt"><div class="hud-dist" id="hudDist">—</div><div class="hud-instr" id="hudInstr">—</div></div></div>
+    <div class="hud-then" id="hudThen"></div>
+    <div class="hud-foot"><span id="hudRoad">—</span><span id="hudEta">—</span></div>
+  </div>
+  <div class="spot-card" id="spotCard"><button class="x" id="spotX">✕</button><div class="t" id="spotT"></div><div class="d" id="spotD"></div></div>
+  <div class="m-toast" id="mToast"></div>
+  <div class="m-bottom">
+    <div class="m-actions" id="mActions"></div>
+  </div>
+</div>
+
+<script>
+const PREFS=[
+  {k:"culture",label:"🏯 文化古蹟",en:"🏯 Culture"},{k:"nature",label:"🌿 自然風景",en:"🌿 Nature"},
+  {k:"food",label:"🍜 美食",en:"🍜 Food"},{k:"shopping",label:"🛍️ 購物",en:"🛍️ Shopping"},
+  {k:"family",label:"👨‍👩‍👧 親子",en:"👨‍👩‍👧 Family"},{k:"night",label:"🌃 夜景",en:"🌃 Night view"},
+];
+const WMO={0:["☀️"],1:["🌤️"],2:["⛅"],3:["☁️"],45:["🌫️"],48:["🌫️"],51:["🌦️"],53:["🌦️"],55:["🌧️"],56:["🌧️"],57:["🌧️"],61:["🌧️"],63:["🌧️"],65:["🌧️"],66:["🌧️"],67:["🌧️"],71:["🌨️"],73:["❄️"],75:["❄️"],77:["🌨️"],80:["🌦️"],81:["🌧️"],82:["⛈️"],85:["🌨️"],86:["❄️"],95:["⛈️"],96:["⛈️"],99:["⛈️"]};
+
+const REGIONS={
+  tokyo:{name:"東京",en:"Tokyo",emo:"🗼",center:[139.7671,35.6812],bookCity:"Tokyo",
+    transit:{sys:"東京 Metro＋都營地下鐵＋JR 山手線",pass:"Suica/PASMO、Tokyo Subway 24/48/72h 票",tip:"市區以地鐵為主、善用轉乘；近郊用 JR",sysE:"Tokyo Metro + Toei Subway + JR Yamanote Line",passE:"Suica/PASMO, Tokyo Subway 24/48/72h ticket",tipE:"Subway covers the city; JR for the suburbs"},
+    spots:[
+      {name:"淺草寺・雷門",en:"Senso-ji",emo:"⛩️",desc:"東京最古老的寺廟與仲見世通",ed:"Tokyo's oldest temple & Nakamise street",tags:["culture","shopping"],dur:2,area:"淺草",ll:[139.7967,35.7148]},
+      {name:"東京晴空塔",en:"Tokyo Skytree",emo:"🗼",desc:"634m 展望台，夜景一覽無遺",ed:"634m tower with sweeping night views",tags:["night","shopping"],dur:2.5,area:"押上",ll:[139.8107,35.7101]},
+      {name:"teamLab Planets",en:"teamLab Planets",emo:"✨",desc:"沉浸式數位藝術（需預約）",ed:"Immersive digital art (book ahead)",tags:["family","culture"],dur:2,area:"豐洲",ll:[139.7900,35.6497]},
+      {name:"澀谷 SHIBUYA SKY",en:"Shibuya Sky",emo:"🚦",desc:"最繁忙路口與屋頂展望台",ed:"Famous scramble & rooftop deck",tags:["night","shopping"],dur:2.5,area:"澀谷",ll:[139.7016,35.6580]},
+      {name:"明治神宮",en:"Meiji Shrine",emo:"🌳",desc:"都心森林中的莊嚴神社",ed:"Serene shrine in a city forest",tags:["nature","culture"],dur:1.5,area:"原宿",ll:[139.6993,35.6764]},
+      {name:"上野公園・動物園",en:"Ueno Park & Zoo",emo:"🐼",desc:"博物館群與貓熊，適合親子",ed:"Museums & pandas, family-friendly",tags:["family","nature","culture"],dur:3,area:"上野",ll:[139.7745,35.7156]},
+      {name:"秋葉原",en:"Akihabara",emo:"🎮",desc:"電器・動漫・扭蛋的聖地",ed:"Electronics, anime & gacha heaven",tags:["shopping"],dur:2,area:"秋葉原",ll:[139.7730,35.7022]},
+      {name:"築地場外市場",en:"Tsukiji Outer Market",emo:"🍣",desc:"現烤玉子燒、海鮮丼早餐",ed:"Tamagoyaki & seafood-bowl breakfast",tags:["food"],dur:1.5,area:"築地",ll:[139.7707,35.6654]},
+      {name:"台場海濱",en:"Odaiba Seaside",emo:"🌉",desc:"彩虹大橋、鋼彈與購物",ed:"Rainbow Bridge, Gundam & shopping",tags:["family","night","shopping"],dur:3,area:"台場",ll:[139.7753,35.6300]},
+    ],
+    hotels:[{tier:"經濟",emo:"🏨",nm:"東橫INN 淺草",area:"淺草站旁",price:"NT$1,800–2,600 / 晚"},{tier:"中價",emo:"🏩",nm:"新宿格拉斯麗飯店",area:"歌舞伎町",price:"NT$4,500–6,500 / 晚"},{tier:"高級",emo:"🌆",nm:"東京半島酒店",area:"丸之內・皇居旁",price:"NT$18,000+ / 晚"}]},
+  osaka:{name:"大阪",en:"Osaka",emo:"🏯",center:[135.5023,34.6937],bookCity:"Osaka",
+    transit:{sys:"大阪 Metro（御堂筋線等）＋JR 環狀線",pass:"大阪周遊卡 Osaka Amazing Pass、Enjoy Eco Card",tip:"周遊卡含地鐵吃到飽＋多處景點免費入場",sysE:"Osaka Metro (Midosuji etc.) + JR Loop Line",passE:"Osaka Amazing Pass, Enjoy Eco Card",tipE:"Amazing Pass = unlimited subway + free entry to many sights"},
+    spots:[
+      {name:"大阪城・天守閣",en:"Osaka Castle",emo:"🏯",desc:"豐臣秀吉名城與公園",ed:"Hideyoshi's castle & park",tags:["culture","nature"],dur:2.5,area:"大阪城",ll:[135.5258,34.6873]},
+      {name:"道頓堀・心齋橋",en:"Dotonbori",emo:"🦀",desc:"固力果、章魚燒與購物",ed:"Glico sign, takoyaki & shopping",tags:["food","shopping","night"],dur:3,area:"難波",ll:[135.5013,34.6687]},
+      {name:"環球影城 USJ",en:"Universal Studios Japan",emo:"🎢",desc:"哈利波特與瑪利歐（整天）",ed:"Harry Potter & Mario (full day)",tags:["family"],dur:8,area:"此花區",ll:[135.4324,34.6655]},
+      {name:"新世界・通天閣",en:"Shinsekai & Tsutenkaku",emo:"🗼",desc:"復古下町，串炸發源地",ed:"Retro downtown, kushikatsu",tags:["food","culture"],dur:2,area:"新世界",ll:[135.5063,34.6525]},
+      {name:"黑門市場",en:"Kuromon Market",emo:"🍤",desc:"大阪廚房，現吃海鮮和牛",ed:"Osaka's kitchen, fresh seafood",tags:["food"],dur:1.5,area:"日本橋",ll:[135.5063,34.6657]},
+      {name:"梅田藍天大廈",en:"Umeda Sky Building",emo:"🌃",desc:"360° 空中庭園夜景",ed:"360° floating-garden night view",tags:["night"],dur:1.5,area:"梅田",ll:[135.4903,34.7052]},
+      {name:"海遊館",en:"Kaiyukan Aquarium",emo:"🐋",desc:"世界級水族館，鯨鯊吸睛",ed:"World-class, whale-shark tank",tags:["family","nature"],dur:3,area:"天保山",ll:[135.4288,34.6545]},
+      {name:"阿倍野 HARUKAS",en:"Abeno Harukas",emo:"🏙️",desc:"日本最高樓之一＋百貨",ed:"One of Japan's tallest + mall",tags:["shopping","night"],dur:2,area:"天王寺",ll:[135.5136,34.6457]},
+    ],
+    hotels:[{tier:"經濟",emo:"🏨",nm:"超級飯店 難波",area:"難波站步行可達",price:"NT$2,000–2,800 / 晚"},{tier:"中價",emo:"🏩",nm:"大阪蒙特利格拉斯米爾",area:"南港・灣區景觀",price:"NT$4,200–6,000 / 晚"},{tier:"高級",emo:"🌆",nm:"大阪康萊德酒店",area:"中之島・高樓景觀",price:"NT$12,000+ / 晚"}]},
+  kyoto:{name:"京都",en:"Kyoto",emo:"⛩️",center:[135.7681,35.0116],bookCity:"Kyoto",
+    transit:{sys:"京都市營地下鐵（烏丸・東西線）＋市巴士（主力）",pass:"地下鐵・巴士一日券",tip:"景點分散，巴士為主、地鐵為輔；尖峰易塞車",sysE:"Kyoto Subway (Karasuma/Tozai) + city buses",passE:"Subway & Bus 1-day pass",tipE:"Buses are primary here; expect traffic at peak"},
+    spots:[
+      {name:"清水寺・二三年坂",en:"Kiyomizu-dera",emo:"🍁",desc:"懸空舞台與古味坡道",ed:"Wooden stage & old slopes",tags:["culture","shopping"],dur:3,area:"東山",ll:[135.7850,34.9949]},
+      {name:"伏見稻荷大社",en:"Fushimi Inari",emo:"⛩️",desc:"千本鳥居綿延山徑",ed:"Endless vermilion torii trail",tags:["culture","nature"],dur:2.5,area:"伏見",ll:[135.7727,34.9671]},
+      {name:"金閣寺",en:"Kinkaku-ji",emo:"✨",desc:"金箔映水，京都名景",ed:"Golden pavilion over water",tags:["culture"],dur:1.5,area:"北區",ll:[135.7292,35.0394]},
+      {name:"嵐山竹林・渡月橋",en:"Arashiyama Bamboo Grove",emo:"🎋",desc:"竹林小徑與保津川風光",ed:"Bamboo path & Togetsukyo",tags:["nature","culture"],dur:3,area:"嵐山",ll:[135.6716,35.0170]},
+      {name:"祇園・花見小路",en:"Gion",emo:"🏮",desc:"藝伎町古街，夜晚最有味",ed:"Geisha district, best at night",tags:["culture","night","food"],dur:2,area:"祇園",ll:[135.7752,35.0036]},
+      {name:"錦市場",en:"Nishiki Market",emo:"🍢",desc:"京都廚房，京野菜醃物",ed:"Kyoto's kitchen & pickles",tags:["food","shopping"],dur:1.5,area:"中京",ll:[135.7649,35.0050]},
+      {name:"二條城",en:"Nijo Castle",emo:"🏯",desc:"德川幕府離宮",ed:"Shogun's villa, nightingale floors",tags:["culture"],dur:2,area:"中京",ll:[135.7483,35.0142]},
+      {name:"銀閣寺・哲學之道",en:"Ginkaku-ji",emo:"🌿",desc:"侘寂庭園與水道散步",ed:"Zen garden & canal stroll",tags:["nature","culture"],dur:2,area:"左京",ll:[135.7982,35.0270]},
+    ],
+    hotels:[{tier:"經濟",emo:"🏨",nm:"京都站前 UNIZO",area:"京都車站旁",price:"NT$2,200–3,200 / 晚"},{tier:"中價",emo:"🏩",nm:"京都格蘭巴赫飯店",area:"四條河原町",price:"NT$4,800–7,000 / 晚"},{tier:"高級",emo:"🌆",nm:"京都麗思卡爾頓",area:"鴨川河畔",price:"NT$25,000+ / 晚"}]},
+  hokkaido:{name:"北海道",en:"Hokkaido",emo:"❄️",center:[141.3545,43.0618],bookCity:"Sapporo",
+    transit:{sys:"札幌市營地下鐵（南北・東西・東豐線）＋市電",pass:"地下鐵一日券、IC 卡 Kitaca/Suica",tip:"市區靠地下鐵；小樽・旭川搭 JR，花海郊區需租車",sysE:"Sapporo Subway + tram",passE:"Subway 1-day pass, Kitaca/Suica",tipE:"Subway downtown; JR to Otaru/Asahikawa; rent a car for rural areas"},
+    spots:[
+      {name:"大通公園・札幌時計台",en:"Odori Park & Clock Tower",emo:"🕰️",desc:"市中心綠帶與地標鐘樓",ed:"Central green belt & clock tower",tags:["culture","nature"],dur:1.5,area:"札幌",ll:[141.3537,43.0608]},
+      {name:"小樽運河",en:"Otaru Canal",emo:"🚣",desc:"煤氣燈與玻璃工藝浪漫老街",ed:"Gas-lamp canal & glassware old town",tags:["nature","shopping","night"],dur:3,area:"小樽",ll:[141.0004,43.1979]},
+      {name:"白色戀人公園",en:"Shiroi Koibito Park",emo:"🍫",desc:"巧克力主題園區，親子最愛",ed:"Chocolate theme park, great for kids",tags:["family","food"],dur:2,area:"宮之澤",ll:[141.2797,43.0896]},
+      {name:"旭山動物園",en:"Asahiyama Zoo",emo:"🐧",desc:"企鵝散步與行動展示聞名",ed:"Famous penguin walk & active exhibits",tags:["family","nature"],dur:3.5,area:"旭川",ll:[142.4809,43.7681]},
+      {name:"藻岩山夜景",en:"Mt. Moiwa Night View",emo:"🌃",desc:"日本新三大夜景之一",ed:"One of Japan's top-3 night views",tags:["night","nature"],dur:2,area:"藻岩",ll:[141.3208,43.0300]},
+      {name:"二條市場",en:"Nijo Market",emo:"🦀",desc:"帝王蟹、海膽、海鮮丼",ed:"King crab, uni & seafood bowls",tags:["food"],dur:1.5,area:"札幌",ll:[141.3556,43.0588]},
+      {name:"狸小路商店街",en:"Tanukikoji Arcade",emo:"🛍️",desc:"藥妝與伴手禮一次購足",ed:"Drugstores & souvenirs in one go",tags:["shopping"],dur:2,area:"札幌",ll:[141.3531,43.0556]},
+    ],
+    hotels:[{tier:"經濟",emo:"🏨",nm:"JR INN 札幌站南口",area:"札幌車站旁",price:"NT$2,000–3,000 / 晚"},{tier:"中價",emo:"🏩",nm:"札幌京王廣場飯店",area:"大通公園附近",price:"NT$3,800–5,500 / 晚"},{tier:"高級",emo:"🌆",nm:"札幌蒙特利埃德爾霍夫",area:"大通・歐風設計",price:"NT$6,500+ / 晚"}]},
+};
+
+const T={
+ zh:{tagline:"把文件的 3D 沉浸式導航做進網頁：MapLibre 3D 底圖＋建物、Three.js 車／旅人、藍色光帶、語音導航",
+  lbRegion:"① 想去哪些地區？（首版精緻 4 大區，可複選連遊）",lbDays:"② 玩幾天？（1–14 天，自動分配）",lbDate:"③ 出發日期（抓天氣，可留空）",lbPref:"④ 旅遊偏好（可複選）",go:"✨ 規劃並開啟 3D 導航",
+  foot:"地圖 © OpenStreetMap contributors (ODbL)・向量圖磚 OpenFreeMap・3D 引擎 MapLibre GL JS + Three.js・路線 OSRM（測試）<br>可按瀏覽器「加入主畫面」像 App 使用 📲",
+  nights:d=>`${d} 天 ${d-1} 夜`,dayUnit:n=>`${n} 天`,
+  selected:(n,l)=>`已選 <b>${n}</b> 區：${l}`,alloc:(d,p)=>`🗓️ ${d} 天分配：${p}`,allocDrop:n=>`（天數不足，後 ${n} 區暫不排入）`,single:per=>`🗓️ 單一地區・每天約 ${per} 個景點`,sep:"、",
+  loading:(n,d)=>`正在規劃 ${n} 區、共 ${d} 天的行程、天氣與匯率…`,
+  tripTitle:(d,m)=>`🗾 ${d} 日${m?'跨區連遊':'之旅'}`,depart:s=>`・出發 ${s}`,metaR:(z,sp)=>`${z} 區<br>共 ${sp} 景點`,dropWarn:n=>`⚠️ 天數少於地區數，先排前 ${n} 區；加天數即可納入其餘。`,
+  open3d:"🗺️ 開啟 3D 沉浸式導航地圖",
+  fxTitle:"即時匯率（台幣 ↔ 日圓）",fxNote:v=>`約 100 日圓 ≈ NT$${v}　來源 open.er-api.com`,
+  wxTitle:"當地天氣預報",wxFail:"天氣超出 16 天預報或載入失敗；出發前再查即可。",
+  trTitle:"交通・地鐵",trPass:"推薦票券",trTip:"小提醒",trColon:"：",
+  hoTitle:r=>`${r} 住宿推薦`,hoApprox:"（參考）",hoCheck:"查空房 →",
+  itTitle:r=>`${r} 每日行程`,dayN:n=>`Day ${n}`,stations:n=>`${n} 站`,flexDay:"機動日",about:"約",hour:"小時",show3d:"在 3D 地圖顯示",
+  flexIntro:"🍵 機動日，人生地不熟不知道去哪？幾個順路建議：",flexLeft:"這區還沒去的景點，挑順路補上：",
+  again:"🔄 重新規劃",share:"📤 分享",shareCopied:"行程已複製到剪貼簿！",
+  week:["日","一","二","三","四","五","六"],
+  mClose:"關閉",flythrough:"▶ 3D 飛越預覽",navFrom:"導航",avatarCar:"🚗 自駕",avatarWalk:"🚶 步行",
+  toastPreview:"3D 飛越預覽中…",toastArrived:"🎉 已抵達！",toastRoute:"規劃路線中…",toastNoRoute:"找不到路線，改用直線示意",
+  navEnd:"結束導航",then:"接著",arriveIn:"後抵達",remain:"剩餘",eta:"預計",
+  about3d:"本 App 之地圖圖資來源為 OpenStreetMap 貢獻者（© OpenStreetMap contributors，ODbL），透過 OpenFreeMap 提供向量圖磚；3D 渲染採 MapLibre GL JS（BSD-3-Clause）與 Three.js（MIT）；路線為 OSRM 公開測試服務（正式上架建議改用 Apple MapKit 或商用 API）。3D 車輛與旅人為程式化原創幾何，與任何品牌無關。",
+ },
+ en:{tagline:"The doc's 3D immersive navigation, on the web: MapLibre 3D basemap + buildings, Three.js car/traveler, glowing route, voice guidance",
+  lbRegion:"① Which areas? (v1 polished 4 areas, multi-select)",lbDays:"② How many days? (1–14, auto-split)",lbDate:"③ Departure date (for weather; optional)",lbPref:"④ Travel style (multi-select)",go:"✨ Plan & open 3D navigation",
+  foot:"Map © OpenStreetMap contributors (ODbL) · tiles OpenFreeMap · 3D MapLibre GL JS + Three.js · routing OSRM (demo)<br>Use \"Add to Home Screen\" to run it like an app 📲",
+  nights:d=>`${d} days / ${d-1} nights`,dayUnit:n=>`${n}d`,
+  selected:(n,l)=>`Selected <b>${n}</b> area(s): ${l}`,alloc:(d,p)=>`🗓️ ${d} days split: ${p}`,allocDrop:n=>` (not enough days; last ${n} skipped)`,single:per=>`🗓️ Single area · ~${per} spots/day`,sep:", ",
+  loading:(n,d)=>`Planning ${n} area(s) over ${d} days — itinerary, weather & FX…`,
+  tripTitle:(d,m)=>`🗾 ${d}-Day ${m?'Multi-Region Trip':'Trip'}`,depart:s=>` · dep. ${s}`,metaR:(z,sp)=>`${z} area(s)<br>${sp} spots`,dropWarn:n=>`⚠️ Fewer days than areas; first ${n} scheduled.`,
+  open3d:"🗺️ Open 3D immersive navigation",
+  fxTitle:"Live Exchange Rate (TWD ↔ JPY)",fxNote:v=>`≈ NT$${v} per 100 JPY · open.er-api.com`,
+  wxTitle:"Local Weather Forecast",wxFail:"Beyond 16-day forecast or failed to load; check near departure.",
+  trTitle:"Transit & Subway",trPass:"Recommended pass",trTip:"Tip",trColon:": ",
+  hoTitle:r=>`Where to Stay — ${r}`,hoApprox:" (approx.)",hoCheck:"Check rooms →",
+  itTitle:r=>`Daily Itinerary — ${r}`,dayN:n=>`Day ${n}`,stations:n=>`${n} stops`,flexDay:"Flex day",about:"approx.",hour:"h",show3d:"Show on 3D map",
+  flexIntro:"🍵 Flex day — not sure where to go? A few ideas:",flexLeft:"Spots here you haven't hit — add convenient ones:",
+  again:"🔄 Re-plan",share:"📤 Share",shareCopied:"Itinerary copied to clipboard!",
+  week:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+  mClose:"Close",flythrough:"▶ 3D fly-through",navFrom:"Navigate",avatarCar:"🚗 Drive",avatarWalk:"🚶 Walk",
+  toastPreview:"3D fly-through…",toastArrived:"🎉 Arrived!",toastRoute:"Routing…",toastNoRoute:"No route found; showing a straight line",
+  navEnd:"End navigation",then:"Then",arriveIn:"to arrive",remain:"Remaining",eta:"ETA",
+  about3d:"Map data © OpenStreetMap contributors (ODbL); vector tiles by OpenFreeMap. 3D rendering by MapLibre GL JS (BSD-3-Clause) and Three.js (MIT). Routing via the public OSRM demo (switch to Apple MapKit or a commercial API for store release). All 3D vehicle/traveler icons are original procedural geometry, unaffiliated with any brand.",
+ }
+};
+
+let state={regions:["tokyo"],days:3,prefs:[],lastResult:null};
+let lang='zh';
+const $=s=>document.querySelector(s);
+const MAX_DAYS=14;
+const t=k=>T[lang][k];
+const rname=r=>lang==='en'?r.en:r.name;
+const sname=s=>lang==='en'?s.en:s.name;
+const sdesc=s=>lang==='en'?s.ed:s.desc;
+const tagLabel=k=>{const p=PREFS.find(x=>x.k===k);return (p?(lang==='en'?p.en:p.label):k).replace(/^\S+\s/,'');};
+function spotsPerDay(d){return d<=2?5:d===3?4:d<=5?3:d<=8?2:1;}
+function allocateDays(total,n){const b=Math.floor(total/n);let r=total-b*n;const a=Array.from({length:n},()=>b);for(let i=0;i<n&&r>0;i++){a[i]++;r--;}return a;}
+function addDays(iso,n){const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function fmtTime(min){let h=Math.floor(min/60)%24,m=min%60;return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;}
+function applyStatic(){
+  document.querySelectorAll("[data-i]").forEach(el=>el.textContent=t(el.dataset.i));
+  document.querySelectorAll("[data-ihtml]").forEach(el=>el.innerHTML=t(el.dataset.ihtml));
+}
+function rebuildRegions(){
+  const rg=$("#regionGrid");
+  rg.innerHTML=Object.entries(REGIONS).map(([k,r])=>`<div class="region" data-r="${k}"><span class="emo">${r.emo}</span>${rname(r)}</div>`).join("");
+  rg.querySelectorAll(".region").forEach(el=>el.onclick=()=>{
+    const k=el.dataset.r,i=state.regions.indexOf(k);
+    if(i>=0){if(state.regions.length>1)state.regions.splice(i,1);}else state.regions.push(k);
+    paintRegions();updateSummary();
+  });
+  paintRegions();updateSummary();
+}
+function paintRegions(){
+  document.querySelectorAll("#regionGrid .region").forEach(el=>{
+    const k=el.dataset.r,idx=state.regions.indexOf(k);
+    el.classList.toggle("active",idx>=0);
+    let o=el.querySelector(".ord");
+    if(idx>=0&&state.regions.length>1){if(!o){o=document.createElement("span");o.className="ord";el.appendChild(o);}o.textContent=idx+1;}else if(o)o.remove();
+  });
+}
+function rebuildChips(){
+  const pc=$("#prefChips");
+  pc.innerHTML=PREFS.map(p=>`<div class="chip ${state.prefs.includes(p.k)?'active':''}" data-k="${p.k}">${lang==='en'?p.en:p.label}</div>`).join("");
+  pc.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{el.classList.toggle("active");const k=el.dataset.k;if(state.prefs.includes(k))state.prefs=state.prefs.filter(x=>x!==k);else state.prefs.push(k);});
+}
+function updateDays(){$("#dVal").textContent=state.days;$("#dHint").textContent=T[lang].nights(state.days);updateSummary();}
+function updateSummary(){
+  const el=$("#regSum");if(!el)return;
+  const names=state.regions.map(k=>rname(REGIONS[k]));
+  let s=T[lang].selected(names.length,names.join(" → "));
+  if(names.length>1){const a=allocateDays(state.days,names.length);const p=[];names.forEach((n,i)=>{if(a[i]>0)p.push(`${n} ${T[lang].dayUnit(a[i])}`);});s+="<br>"+T[lang].alloc(state.days,p.join(T[lang].sep));if(p.length<names.length)s+=T[lang].allocDrop(names.length-p.length);}
+  else s+="<br>"+T[lang].single(spotsPerDay(state.days));
+  el.innerHTML=s;
+}
+function setLang(l){lang=l;applyStatic();rebuildRegions();rebuildChips();updateDays();$("#langBtn").textContent=lang==='zh'?'EN':'中文';if(state.lastResult)renderResult(state.lastResult);}
+function buildForm(){
+  rebuildRegions();rebuildChips();
+  $("#dMinus").onclick=()=>{state.days=Math.max(1,state.days-1);updateDays();};
+  $("#dPlus").onclick=()=>{state.days=Math.min(MAX_DAYS,state.days+1);updateDays();};
+  const dt=new Date();dt.setDate(dt.getDate()+14);$("#startDate").value=dt.toISOString().slice(0,10);
+  $("#goBtn").onclick=generate;
+  $("#langBtn").onclick=()=>setLang(lang==='zh'?'en':'zh');
+  $("#langBtn").textContent=lang==='zh'?'EN':'中文';
+  applyStatic();updateDays();
+}
+function planItinerary(region,days,prefs){
+  const scored=region.spots.map(s=>{let sc=0;prefs.forEach(p=>{if(s.tags.includes(p))sc+=2;});sc+=Math.random()*0.9;return {...s,score:sc};}).sort((a,b)=>b.score-a.score);
+  const per=spotsPerDay(days);
+  const byArea={};scored.forEach(s=>{(byArea[s.area]=byArea[s.area]||[]).push(s);});
+  const queue=[];Object.values(byArea).sort((a,b)=>b.length-a.length).forEach(g=>{g.sort((a,b)=>b.score-a.score).forEach(s=>queue.push(s));});
+  const plan=[];
+  for(let d=0;d<days;d++){const chunk=queue.splice(0,per);let tm=9*60;const stops=chunk.map(s=>{const o={...s,time:fmtTime(tm)};tm+=Math.round(s.dur*60)+30;return o;});plan.push({stops});}
+  return plan;
+}
+async function fetchWeather(region,days,startDate){
+  const c=region.center;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${c[1]}&longitude=${c[0]}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=16`;
+  const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();const d=j.daily;
+  let i0=0;if(startDate&&d.time.includes(startDate))i0=d.time.indexOf(startDate);
+  const out=[];for(let i=i0;i<d.time.length&&out.length<days;i++)out.push({date:d.time[i],code:d.weather_code[i],hi:Math.round(d.temperature_2m_max[i]),lo:Math.round(d.temperature_2m_min[i]),rain:d.precipitation_probability_max[i]});
+  return out;
+}
+async function fetchFX(){try{const r=await fetch("https://open.er-api.com/v6/latest/TWD");const j=await r.json();if(j&&j.rates&&j.rates.JPY)return j.rates.JPY;}catch(e){}return 4.75;}
+async function generate(){
+  const keys=state.regions.slice();if(!keys.length)return;
+  const days=state.days,startDate=$("#startDate").value||null;
+  const res=$("#results");$("#goBtn").disabled=true;
+  const alloc=allocateDays(days,keys.length);const picked=[];keys.forEach((k,i)=>{if(alloc[i]>0)picked.push({key:k,days:alloc[i]});});
+  const dropped=keys.length-picked.length;
+  res.innerHTML=`<div class="loading fade"><div class="spin"></div>${T[lang].loading(picked.length,days)}</div>`;
+  res.scrollIntoView({behavior:"smooth",block:"start"});
+  let cursor=0;const segs=[],wxP=[],flatDays=[];
+  picked.forEach(pk=>{
+    const region=REGIONS[pk.key];const segStart=startDate?addDays(startDate,cursor):null;
+    const itin=planItinerary(region,pk.days,state.prefs);
+    itin.forEach((d,ii)=>{d.gday=cursor+ii+1;flatDays.push({regionKey:pk.key,region,gday:d.gday,localDay:ii+1,stops:d.stops});});
+    segs.push({regionKey:pk.key,region,days:pk.days,startDate:segStart,itin,weather:null});
+    wxP.push(fetchWeather(region,pk.days,segStart).catch(()=>null));cursor+=pk.days;
+  });
+  const [weathers,fx]=await Promise.all([Promise.all(wxP),fetchFX()]);
+  segs.forEach((s,i)=>s.weather=weathers[i]);
+  state.lastResult={segs,flatDays,fx,startDate,days,dropped};
+  renderResult(state.lastResult);
+  $("#goBtn").disabled=false;
+}
+function fxSection(fx){return `<div class="sec fade"><div class="sec-h"><span class="ic">💱</span>${T[lang].fxTitle}</div><div class="sec-b"><div class="fx-top"><span class="fx-rate">¥${fx.toFixed(2)}</span><span class="fx-unit">= NT$1</span></div><div class="fx-note">${T[lang].fxNote((100/fx).toFixed(1))}</div><div class="conv"><span class="cur">JPY</span><input id="jpyIn" type="number" inputmode="decimal" value="10000"><span class="eq">≈</span><input id="twdIn" type="number" inputmode="decimal" readonly><span class="cur">TWD</span></div></div></div>`;}
+function wxSection(w){let h=`<div class="sec"><div class="sec-h"><span class="ic">🌤️</span>${T[lang].wxTitle}</div><div class="sec-b">`;if(w&&w.length){h+=`<div class="wx-scroll">`+w.map(x=>{const[ic]=WMO[x.code]||["🌡️"];const md=new Date(x.date);return `<div class="wx-day"><div class="d">${md.getMonth()+1}/${md.getDate()} ${T[lang].week[md.getDay()]}</div><div class="ico">${ic}</div><div class="t">${x.hi}°<span class="lo"> / ${x.lo}°</span></div><div class="rain">☔ ${x.rain??0}%</div></div>`;}).join("")+`</div>`;}else h+=`<div class="err">${T[lang].wxFail}</div>`;return h+`</div></div>`;}
+function transitSection(r){const tr=r.transit,c=T[lang].trColon;const sys=lang==='en'?tr.sysE:tr.sys,pass=lang==='en'?tr.passE:tr.pass,tip=lang==='en'?tr.tipE:tr.tip;return `<div class="sec"><div class="sec-h"><span class="ic">🚇</span>${T[lang].trTitle}</div><div class="sec-b"><div class="tr-sys">${sys}</div><div class="tr-row"><b>${T[lang].trPass}${c}</b>${pass}</div><div class="tr-row"><b>${T[lang].trTip}${c}</b>${tip}</div></div></div>`;}
+function hotelSection(r){const bk=c=>`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(c)}`;let h=`<div class="sec"><div class="sec-h"><span class="ic">🏨</span>${T[lang].hoTitle(rname(r))}</div><div class="sec-b">`;h+=r.hotels.map(x=>`<div class="hotel"><div class="tier">${x.emo}</div><div class="info"><div class="nm">${x.nm}</div><div class="meta">📍 ${x.area}</div><div class="price">💰 ${x.price}${T[lang].hoApprox}</div><a class="book" href="${bk(x.area+' '+r.bookCity)}" target="_blank" rel="noopener">${T[lang].hoCheck}</a></div></div>`).join("");return h+`</div></div>`;}
+const FLEX=[{zh:"☕ 找一間在地老喫茶店，手沖咖啡配鬆餅",en:"☕ Find an old-school kissaten for coffee & pancakes"},{zh:"🛒 逛當地超市與藥妝，伴手禮一次掃齊",en:"🛒 Hit a local supermarket & drugstore for souvenirs"},{zh:"🚶 隨意搭地鐵挑沒排到的站下車鑽巷弄",en:"🚶 Ride the subway to a random stop and wander"},{zh:"🍜 問飯店櫃台在地人推薦餐廳",en:"🍜 Ask the front desk for a locals-only restaurant"},{zh:"♨️ 找錢湯或日歸溫泉放鬆一下",en:"♨️ Visit a sento or day-use onsen"},{zh:"📸 回到白天最喜歡的區域慢慢拍照",en:"📸 Revisit your favourite area for photos"}];
+function itinSection(seg){
+  const region=seg.region,used=new Set();seg.itin.forEach(d=>d.stops.forEach(s=>used.add(s.name)));
+  const leftover=region.spots.filter(s=>!used.has(s.name));let lp=0,fc=0;
+  let h=`<div class="sec"><div class="sec-h"><span class="ic">🗓️</span>${T[lang].itTitle(rname(region))}</div><div class="sec-b">`;
+  seg.itin.forEach((d,di)=>{
+    let wx="";if(seg.weather&&seg.weather[di]){const[ic]=WMO[seg.weather[di].code]||[""];wx=`${ic} ${seg.weather[di].hi}°/${seg.weather[di].lo}°`;}
+    h+=`<div class="day"><div class="day-tab"><span class="day-badge">${T[lang].dayN(d.gday)}</span><span class="day-title">${d.stops.length?T[lang].stations(d.stops.length):T[lang].flexDay}${wx?('・'+wx):''}</span></div>`;
+    if(d.stops.length){d.stops.forEach((s,si)=>{h+=`<div class="stop"><div class="pin">${si+1}</div><div class="c"><div class="time">🕘 ${s.time}　${T[lang].about} ${s.dur} ${T[lang].hour}</div><div class="nm">${sname(s)}</div><div class="ds">${sdesc(s)}</div><div class="tags">${s.tags.map(tg=>`<span class="tg">${tagLabel(tg)}</span>`).join("")}<span class="nav" onclick="openMapForDay(${d.gday-1},${si})">🗺️ ${T[lang].show3d}</span></div></div></div>`;});}
+    else{h+=`<div class="freeday"><div class="flex-intro">${T[lang].flexIntro}</div>`;const picks=leftover.slice(lp,lp+3);if(picks.length){h+=`<div class="flex-sub">${T[lang].flexLeft}</div>`;picks.forEach(s=>{h+=`<div class="flex-spot"><span>${s.emo} <b>${sname(s)}</b> — ${sdesc(s)}</span></div>`;});}const i1=(fc*2)%FLEX.length,i2=(fc*2+1)%FLEX.length;h+=`<ul class="flex-ideas"><li>${lang==='en'?FLEX[i1].en:FLEX[i1].zh}</li><li>${lang==='en'?FLEX[i2].en:FLEX[i2].zh}</li></ul></div>`;lp+=3;fc++;}
+    h+=`</div>`;
+  });
+  return h+`</div></div>`;
+}
+function renderResult(R){
+  const {segs,fx,startDate,days,dropped}=R;const res=$("#results");
+  const totalSpots=segs.reduce((n,s)=>n+s.itin.reduce((m,d)=>m+d.stops.length,0),0);
+  const route=segs.map(s=>rname(s.region)).join(" → ");
+  let html=`<div class="trip-meta fade"><div><div class="big">${T[lang].tripTitle(days,segs.length>1)}</div><div class="sub">${route}${startDate?T[lang].depart(startDate):''}</div></div><div class="r">${T[lang].metaR(segs.length,totalSpots)}</div></div>`;
+  if(dropped>0)html+=`<div class="sec fade" style="padding:12px 14px;color:#9a4a18;background:#fdf1e8;font-size:12px">${T[lang].dropWarn(segs.length)}</div>`;
+  html+=`<button class="open3d fade" onclick="openMapForDay(0,-1)">${T[lang].open3d}</button>`;
+  html+=fxSection(fx);
+  segs.forEach(s=>{html+=`<div class="seg fade"><div class="seg-h"><span class="flag">${s.region.emo}</span>${rname(s.region)}<span style="font-size:12px;color:var(--ink-soft);font-weight:600">(${T[lang].dayUnit(s.days)})</span></div>`+wxSection(s.weather)+transitSection(s.region)+hotelSection(s.region)+itinSection(s)+`</div>`;});
+  html+=`<div class="toolbar fade"><button id="again">${T[lang].again}</button><button id="share" class="pri">${T[lang].share}</button></div>`;
+  html+=`<div class="about">${T[lang].about3d}</div>`;
+  res.innerHTML=html;
+  const j=$("#jpyIn"),tw=$("#twdIn");if(j){const c=()=>{tw.value=((parseFloat(j.value)||0)/fx).toFixed(0);};j.addEventListener("input",c);c();}
+  $("#again").onclick=()=>{$("#panel").scrollIntoView({behavior:"smooth"});};
+  $("#share").onclick=()=>shareAll(R);
+}
+function shareAll(R){
+  let txt=`🗾 ${T[lang].tripTitle(R.days,R.segs.length>1)} : ${R.segs.map(s=>rname(s.region)).join(" → ")}\n`;
+  R.segs.forEach(s=>{txt+=`\n■ ${rname(s.region)}`;s.itin.forEach(d=>{txt+=`\n[${T[lang].dayN(d.gday)}]${d.stops.length?'':' '+T[lang].flexDay}\n`;d.stops.forEach(x=>txt+=`${x.time} ${sname(x)}\n`);});});
+  if(navigator.share)navigator.share({title:"Japan Trip",text:txt}).catch(()=>{});else{navigator.clipboard?.writeText(txt);alert(T[lang].shareCopied);}
+}
+/* ===================== 3D 地圖導航引擎 ===================== */
+const MAP={map:null,ready:false,markers:[],flatIdx:0,avatarMode:'car',three:null,nav:null,raf:null,pulseRaf:null};
+
+function hav(a,b){const R=6371000,toR=x=>x*Math.PI/180;const dLa=toR(b[1]-a[1]),dLo=toR(b[0]-a[0]);const s=Math.sin(dLa/2)**2+Math.cos(toR(a[1]))*Math.cos(toR(b[1]))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(s));}
+function brng(a,b){const toR=x=>x*Math.PI/180;const y=Math.sin(toR(b[0]-a[0]))*Math.cos(toR(b[1]));const x=Math.cos(toR(a[1]))*Math.sin(toR(b[1]))-Math.sin(toR(a[1]))*Math.cos(toR(b[1]))*Math.cos(toR(b[0]-a[0]));return Math.atan2(y,x);}
+function lerpLL(a,b,f){return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];}
+function speak(txt){try{if(!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(txt);u.lang=lang==='en'?'en-US':'zh-TW';u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function toast(msg,keep){const el=$("#mToast");el.textContent=msg;el.classList.add("on");clearTimeout(MAP._tt);if(!keep)MAP._tt=setTimeout(()=>el.classList.remove("on"),2200);}
+function hideToast(){$("#mToast").classList.remove("on");}
+
+/* --- Three.js 程式化車輛與旅人（單位：公尺） --- */
+function buildCar(){
+  const g=new THREE.Group();
+  const white=new THREE.MeshStandardMaterial({color:0xf5f7fa,roughness:.35,metalness:.1});
+  const glass=new THREE.MeshStandardMaterial({color:0x9fc0e8,roughness:.1,metalness:.3});
+  const dark=new THREE.MeshStandardMaterial({color:0x222831,roughness:.6});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.8,4.4),white);body.position.y=0.65;g.add(body);
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.75,0.7,2.2),glass);cabin.position.set(0,1.25,-0.1);g.add(cabin);
+  MAP._brake=new THREE.MeshStandardMaterial({color:0xff2b2b,emissive:0xff0000,emissiveIntensity:0.3,roughness:.4});
+  [-0.65,0.65].forEach(x=>{const bl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.18,0.1),MAP._brake);bl.position.set(x,0.75,-2.2);g.add(bl);});
+  const wheelGeo=new THREE.CylinderGeometry(0.42,0.42,0.3,16);wheelGeo.rotateZ(Math.PI/2);
+  [[-0.9,1.3],[0.9,1.3],[-0.9,-1.3],[0.9,-1.3]].forEach(([x,z])=>{const w=new THREE.Mesh(wheelGeo,dark);w.position.set(x,0.42,z);g.add(w);});
+  return g;
+}
+function buildTraveler(){
+  const g=new THREE.Group();
+  const skin=new THREE.MeshStandardMaterial({color:0xfde6c4,roughness:.6});
+  const coat=new THREE.MeshStandardMaterial({color:0x2563eb,roughness:.5});
+  const pants=new THREE.MeshStandardMaterial({color:0x334155,roughness:.7});
+  const pack=new THREE.MeshStandardMaterial({color:0xf97316,roughness:.6});
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.33,18,18),skin);head.position.y=1.62;g.add(head);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.28,0.5,6,12),coat);torso.position.y=1.05;g.add(torso);
+  const bp=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.55,0.26),pack);bp.position.set(0,1.12,-0.34);g.add(bp);
+  [[-0.15,pants,0.66],[0.15,pants,0.66]].forEach(([x,m,y])=>{const leg=new THREE.Mesh(new THREE.CapsuleGeometry(0.12,0.5,6,10),m);leg.position.set(x,y-0.3,0);g.add(leg);});
+  [[-0.38,1.1],[0.38,1.1]].forEach(([x,y])=>{const arm=new THREE.Mesh(new THREE.CapsuleGeometry(0.1,0.42,6,10),coat);arm.position.set(x,y,0);g.add(arm);});
+  g.scale.setScalar(1.5);
+  return g;
+}
+function makeThreeLayer(){
+  return {
+    id:'avatar3d',type:'custom',renderingMode:'3d',
+    onAdd(map,gl){
+      this.map=map;this.camera=new THREE.Camera();this.scene=new THREE.Scene();
+      this.scene.add(new THREE.AmbientLight(0xffffff,1.35));
+      const d=new THREE.DirectionalLight(0xffffff,1.1);d.position.set(30,80,50);this.scene.add(d);
+      this.car=buildCar();this.trav=buildTraveler();
+      this.scene.add(this.car);this.scene.add(this.trav);
+      this.renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});
+      this.renderer.autoClear=false;
+      this.visible=false;this.heading=0;this.t=null;
+      MAP.three=this;this.setMode(MAP.avatarMode);
+    },
+    setMode(m){if(this.car)this.car.visible=(m==='car');if(this.trav)this.trav.visible=(m!=='car');},
+    render(gl,matrix){
+      if(!this.visible||!this.t){this.renderer.resetState();return;}
+      const t=this.t;
+      const rotX=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0),Math.PI/2);
+      const rotZ=new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0,0,1),this.heading);
+      const m=new THREE.Matrix4().fromArray(matrix);
+      const l=new THREE.Matrix4().makeTranslation(t.x,t.y,t.z).scale(new THREE.Vector3(t.s,-t.s,t.s)).multiply(rotX).multiply(rotZ);
+      this.camera.projectionMatrix=m.clone().multiply(l);
+      this.renderer.resetState();this.renderer.render(this.scene,this.camera);
+    }
+  };
+}
+function setAvatar(lng,lat,headingRad){
+  const l=MAP.three;if(!l)return;
+  const mc=maplibregl.MercatorCoordinate.fromLngLat([lng,lat],0);
+  l.t={x:mc.x,y:mc.y,z:mc.z,s:mc.meterInMercatorCoordinateUnits()};
+  l.heading=-headingRad;l.visible=true;
+  if(MAP.map)MAP.map.triggerRepaint();
+}
+function hideAvatar(){if(MAP.three){MAP.three.visible=false;if(MAP.map)MAP.map.triggerRepaint();}}
+
+/* --- 初始化地圖 --- */
+function initMap(){
+  if(MAP.map)return;
+  if(typeof maplibregl==='undefined'){toast(lang==='en'?'Map library failed to load':'地圖函式庫載入失敗',true);return;}
+  MAP.map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:REGIONS[state.regions[0]].center,zoom:15,pitch:45,bearing:0,antialias:true,attributionControl:{compact:true}});
+  MAP.map.on('load',()=>{
+    try{
+      const layers=MAP.map.getStyle().layers;let firstSym=null;
+      for(const ly of layers){if(ly.type==='symbol'){firstSym=ly.id;break;}}
+      if(!MAP.map.getLayer('bldg3d')){
+        MAP.map.addLayer({id:'bldg3d',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:14,
+          paint:{'fill-extrusion-color':'#e9edf3','fill-extrusion-height':['coalesce',['get','render_height'],['get','height'],10],'fill-extrusion-base':['coalesce',['get','render_min_height'],['get','min_height'],0],'fill-extrusion-opacity':0.9}},firstSym);
+      }
+    }catch(e){}
+    // route layers
+    MAP.map.addSource('route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});
+    MAP.map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#1f6feb','line-width':16,'line-opacity':0.3,'line-blur':8}});
+    MAP.map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#49a3ff','line-width':6,'line-opacity':0.95}});
+    MAP.map.addSource('pulse',{type:'geojson',data:{type:'Feature',geometry:{type:'Point',coordinates:[0,0]}}});
+    MAP.map.addLayer({id:'pulse',type:'circle',source:'pulse',paint:{'circle-radius':4,'circle-color':'#1f6feb','circle-opacity':0}});
+    MAP.map.addLayer(makeThreeLayer());
+    MAP.ready=true;
+    renderDay(MAP.flatIdx);
+  });
+}
+
+function clearMarkers(){MAP.markers.forEach(m=>m.remove());MAP.markers=[];}
+function setRoute(coords){if(MAP.map&&MAP.map.getSource('route'))MAP.map.getSource('route').setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});}
+
+function renderDay(idx){
+  if(!MAP.ready)return;
+  stopNav();
+  MAP.flatIdx=idx;
+  const fd=state.lastResult.flatDays[idx];
+  clearMarkers();setRoute([]);hideAvatar();
+  // day pills
+  $("#dayPills").innerHTML=state.lastResult.flatDays.map((d,i)=>`<button class="day-pill ${i===idx?'active':''}" data-i="${i}">${rname(d.region)} ${T[lang].dayN(d.gday)}</button>`).join("");
+  $("#dayPills").querySelectorAll(".day-pill").forEach(b=>b.onclick=()=>renderDay(+b.dataset.i));
+  const stops=fd.stops;
+  if(!stops.length){
+    MAP.map.easeTo({center:fd.region.center,zoom:12,pitch:40,bearing:0,duration:1000});
+    $("#mActions").innerHTML=`<div class="m-btn" style="opacity:.8">🍵 ${T[lang].flexDay}</div>`;
+    return;
+  }
+  const bounds=new maplibregl.LngLatBounds();
+  stops.forEach((s,i)=>{
+    bounds.extend(s.ll);
+    const el=document.createElement('div');el.className='mpin'+(i===0?' start':i===stops.length-1?' end':'');
+    el.innerHTML=`<span>${i+1}</span>`;
+    el.onclick=()=>{showSpotCard(s);MAP.map.easeTo({center:s.ll,zoom:16.5,pitch:55,duration:900});};
+    const mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(s.ll).addTo(MAP.map);
+    MAP.markers.push(mk);
+  });
+  if(stops.length>1)MAP.map.fitBounds(bounds,{padding:{top:120,bottom:200,left:60,right:60},pitch:45,duration:1100,maxZoom:15});
+  else MAP.map.easeTo({center:stops[0].ll,zoom:15,pitch:45,duration:900});
+  $("#mActions").innerHTML=`<button class="m-btn" id="btnFly">${T[lang].flythrough}</button>`+(stops.length>1?`<button class="m-btn blue" id="btnNav">🧭 ${lang==='en'?'Start navigation':'開始導航'}</button>`:``);
+  const bf=$("#btnFly");if(bf)bf.onclick=()=>flythrough(stops);
+  const bn=$("#btnNav");if(bn)bn.onclick=()=>startNav(stops);
+}
+
+function showSpotCard(s){$("#spotT").textContent=s.emo+' '+sname(s);$("#spotD").textContent=sdesc(s);$("#spotCard").classList.add("on");}
+
+/* --- 3D 飛越預覽 --- */
+async function flythrough(stops){
+  stopNav();hideAvatar();$("#spotCard").classList.remove("on");
+  toast(T[lang].toastPreview);
+  for(let i=0;i<stops.length;i++){
+    const s=stops[i];const next=stops[i+1];
+    const bearing=next?brng(s.ll,next.ll)*180/Math.PI:0;
+    await new Promise(res=>{
+      MAP.map.flyTo({center:s.ll,zoom:17,pitch:62,bearing,duration:1800,essential:true,easing:t=>1-Math.pow(1-t,3)});
+      setTimeout(()=>{showSpotCard(s);speak((lang==='en'?'Stop ':'第 ')+(i+1)+(lang==='en'?': ':' 站 ')+sname(s));},1200);
+      setTimeout(res,2300);
+    });
+  }
+  hideToast();
+}
+
+/* --- 3D 導航（2D→3D 俯衝 + 沿路線移動 + HUD + 語音 + 抵達脈衝） --- */
+async function buildDayRoute(stops){
+  const driving=MAP.avatarMode==='car';
+  let full=[];const spotAt=[0];
+  for(let i=0;i<stops.length-1;i++){
+    let seg=await routeOSRM(stops[i].ll,stops[i+1].ll,driving);
+    if(i>0)seg=seg.slice(1);
+    full=full.concat(seg);spotAt.push(full.length-1);
+  }
+  return {full,spotAt};
+}
+async function routeOSRM(a,b,driving){
+  try{
+    const prof=driving?'driving':'foot';
+    const u=`https://router.project-osrm.org/route/v1/${prof}/${a[0]},${a[1]};${b[0]},${b[1]}?overview=full&geometries=geojson`;
+    const r=await fetch(u);const j=await r.json();
+    if(j.routes&&j.routes[0]&&j.routes[0].geometry.coordinates.length>1)return j.routes[0].geometry.coordinates;
+  }catch(e){}
+  const pts=[];const N=28;for(let k=0;k<=N;k++)pts.push(lerpLL(a,b,k/N));return pts;
+}
+async function startNav(stops){
+  stopNav();$("#spotCard").classList.remove("on");
+  toast(T[lang].toastRoute,true);
+  const {full,spotAt}=await buildDayRoute(stops);
+  hideToast();
+  if(full.length<2){toast(T[lang].toastNoRoute);return;}
+  setRoute(full);
+  // cumulative distance
+  const cum=[0];for(let i=1;i<full.length;i++)cum.push(cum[i-1]+hav(full[i-1],full[i]));
+  const total=cum[cum.length-1];
+  const spotDist=spotAt.map(i=>cum[i]);
+  $("#hud").classList.add("on");
+  const start=full[0],b0=brng(full[0],full[Math.min(3,full.length-1)]);
+  // 2D -> 3D 俯衝
+  MAP.map.flyTo({center:start,zoom:18,pitch:66,bearing:b0*180/Math.PI,duration:1800,essential:true,easing:t=>1-Math.pow(1-t,3)});
+  setAvatar(start[0],start[1],b0);
+  speak((lang==='en'?'Starting navigation to ':'開始導航，前往 ')+sname(stops[1]||stops[0]));
+  const legSec=MAP.avatarMode==='car'?8:10;
+  const dur=(stops.length-1)*legSec*1000;
+  let nextSpot=1;
+  await new Promise(resolve=>{setTimeout(resolve,1700);});
+  const t0=performance.now();
+  MAP.nav={stops,active:true};
+  function frame(now){
+    if(!MAP.nav||!MAP.nav.active)return;
+    const p=Math.min(1,(now-t0)/dur);
+    const dist=p*total;
+    // locate segment
+    let i=1;while(i<cum.length&&cum[i]<dist)i++;
+    i=Math.min(i,full.length-1);
+    const f=(dist-cum[i-1])/Math.max(0.001,(cum[i]-cum[i-1]));
+    const pos=lerpLL(full[i-1],full[i],f);
+    const hb=brng(full[i-1],full[i]);
+    setAvatar(pos[0],pos[1],hb);
+    MAP.map.jumpTo({center:pos,bearing:hb*180/Math.PI,pitch:66,zoom:MAP.avatarMode==='car'?17.5:18.2});
+    // HUD
+    const remain=Math.max(0,spotDist[nextSpot]-dist);
+    $("#hudDist").textContent=(remain>=1000?(remain/1000).toFixed(1)+' km':Math.round(remain)+' m');
+    $("#hudInstr").textContent=(lang==='en'?'To ':'前往 ')+sname(stops[nextSpot]);
+    $("#hudArrow").textContent=remain<60?'📍':'⬆️';
+    $("#hudRoad").textContent=(MAP.avatarMode==='car'?'🚗':'🚶')+' '+(lang==='en'?'en route':'導航中');
+    const leftTime=Math.round((dur-(now-t0))/1000);$("#hudEta").textContent=T[lang].eta+' '+Math.max(0,leftTime)+'s';
+    $("#hudThen").textContent=stops[nextSpot+1]?(T[lang].then+' → '+sname(stops[nextSpot+1])):'';
+    if(dist>=spotDist[nextSpot]-2){arrivePulse(stops[nextSpot].ll);speak((lang==='en'?'Arrived: ':'已抵達 ')+sname(stops[nextSpot]));toast('📍 '+sname(stops[nextSpot]));nextSpot++;}
+    if(p>=1||nextSpot>=stops.length){finishNav(stops);return;}
+    MAP.raf=requestAnimationFrame(frame);
+  }
+  MAP.raf=requestAnimationFrame(frame);
+}
+function arrivePulse(ll){
+  if(!MAP.map.getSource('pulse'))return;
+  MAP.map.getSource('pulse').setData({type:'Feature',geometry:{type:'Point',coordinates:ll}});
+  let r=4,op=0.6;cancelAnimationFrame(MAP.pulseRaf);
+  const step=()=>{r+=2.2;op-=0.012;MAP.map.setPaintProperty('pulse','circle-radius',r);MAP.map.setPaintProperty('pulse','circle-opacity',Math.max(0,op));if(op>0)MAP.pulseRaf=requestAnimationFrame(step);};
+  step();
+}
+function finishNav(stops){
+  MAP.nav=null;cancelAnimationFrame(MAP.raf);
+  const last=stops[stops.length-1];
+  toast(T[lang].toastArrived);speak(T[lang].toastArrived);
+  // 繞行鏡頭
+  let ang=0;const orbit=()=>{if(MAP.nav)return;ang+=0.4;MAP.map.jumpTo({center:last.ll,bearing:ang,pitch:60,zoom:17.5});if(ang<90){MAP._orbit=requestAnimationFrame(orbit);}else{setTimeout(()=>{$("#hud").classList.remove("on");hideAvatar();renderDay(MAP.flatIdx);},800);}};
+  MAP._orbit=requestAnimationFrame(orbit);
+}
+function stopNav(){if(MAP.nav)MAP.nav.active=false;MAP.nav=null;cancelAnimationFrame(MAP.raf);cancelAnimationFrame(MAP._orbit);cancelAnimationFrame(MAP.pulseRaf);$("#hud").classList.remove("on");}
+
+/* --- 開關全螢幕地圖 --- */
+function openMapForDay(flatIdx,spotIdx){
+  if(!state.lastResult)return;
+  $("#mapOverlay").classList.add("on");
+  MAP.flatIdx=flatIdx;
+  if(!MAP.map){initMap();}
+  else{if(MAP.map.resize)MAP.map.resize();renderDay(flatIdx);}
+  if(spotIdx>=0){setTimeout(()=>{const s=state.lastResult.flatDays[flatIdx].stops[spotIdx];if(s){showSpotCard(s);MAP.map.easeTo({center:s.ll,zoom:16.5,pitch:55,duration:900});}},MAP.ready?300:1600);}
+}
+function closeMap(){stopNav();speechSynthesis&&speechSynthesis.cancel();$("#mapOverlay").classList.remove("on");}
+function toggleAvatar(){
+  MAP.avatarMode=MAP.avatarMode==='car'?'character':'car';
+  $("#avatarToggle").textContent=MAP.avatarMode==='car'?T[lang].avatarWalk:T[lang].avatarCar;
+  if(MAP.three)MAP.three.setMode(MAP.avatarMode);
+}
+
+/* --- 綁定與初始化 --- */
+$("#mClose").onclick=closeMap;
+$("#hudExit").onclick=()=>{stopNav();hideAvatar();renderDay(MAP.flatIdx);};
+$("#spotX").onclick=()=>$("#spotCard").classList.remove("on");
+$("#avatarToggle").onclick=toggleAvatar;
+$("#avatarToggle").textContent=T.zh.avatarWalk;
+buildForm();
+</script>
+</body>
+</html>
