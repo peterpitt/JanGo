@@ -4,3 +4,7 @@ android-twa/*.keystore
 android-twa/_STORE_PASSWORD.txt
 *.jks
 node_modules/
+android-twa/build/
+android-twa/releases/
+*.idsig
+local.properties

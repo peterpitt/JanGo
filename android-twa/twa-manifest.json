@@ -17,12 +17,12 @@
   "webManifestUrl": "https://japan-3d-nav.vercel.app/manifest.webmanifest",
   "fallbackType": "customtabs",
   "signingKey": { "path": "./jangogo-upload.keystore", "alias": "jangogo" },
-  "appVersionName": "1.0.0",
-  "appVersion": 1,
+  "appVersionName": "2",
+  "appVersion": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "features": {},
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
-  "minSdkVersion": 21
+  "minSdkVersion": 24
 }
