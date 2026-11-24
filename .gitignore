@@ -1,0 +1,6 @@
+# 簽署金鑰與密碼：絕不進版控
+android-twa/jangogo-upload.keystore
+android-twa/*.keystore
+android-twa/_STORE_PASSWORD.txt
+*.jks
+node_modules/

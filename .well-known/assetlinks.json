@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jangogo.app",
+      "sha256_cert_fingerprints": [
+        "95:A7:FE:1F:DB:0F:F7:1D:C6:03:5B:76:C2:D0:02:4E:69:DD:D8:1E:43:A1:C7:1D:C9:87:CF:3B:E1:BE:0E:62"
+      ]
+    }
+  }
+]

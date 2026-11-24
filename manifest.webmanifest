@@ -1,0 +1,17 @@
+{
+  "name": "Jangogo",
+  "short_name": "Jangogo",
+  "description": "日本旅遊 3D 沉浸式導航 — 行程規劃、3D 地圖、真實 GPS 導航、天氣與匯率。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1526",
+  "theme_color": "#0d1526",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
